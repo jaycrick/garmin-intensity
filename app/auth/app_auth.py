@@ -41,24 +41,43 @@ class Config:
         self.workoutfile = "test_data/sample_workout.json"  # Sample workout JSON file
 
         # Export settings
-        self.export_dir = Path("your_data")
+        self.export_dir = Path("data")
         self.export_dir.mkdir(exist_ok=True)
 
 
-def get_mfa() -> str:
-    """Get MFA token."""
-    return input("MFA one-time code: ")
+def get_credentials():
+    """Get email and password from environment or user input."""
+    email = os.getenv("EMAIL")
+    password = os.getenv("PASSWORD")
+
+    if not email:
+        email = input("Login email: ")
+    if not password:
+        password = getpass("Enter password: ")
+
+    return email, password
 
 
-def init_api(email: str | None = None, password: str | None = None) -> Garmin | None:
-    """Initialize Garmin API with smart error handling and recovery."""
+def init_api() -> Garmin | None:
+    """Initialize Garmin API with authentication and token management."""
+    # Configure token storage
+    tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
+    tokenstore_path = Path(tokenstore).expanduser()
+
+    # Check if token files exist
+    if tokenstore_path.exists():
+        token_files = list(tokenstore_path.glob("*.json"))
+        if token_files:
+            pass
+        else:
+            pass
+    else:
+        pass
+
     # First try to login with stored tokens
     try:
-        print(f"Attempting to login using stored tokens from: {config.tokenstore}")
-
         garmin = Garmin()
-        garmin.login(config.tokenstore)
-        print("Successfully logged in using stored tokens!")
+        garmin.login(str(tokenstore_path))
         return garmin
 
     except (
@@ -67,80 +86,54 @@ def init_api(email: str | None = None, password: str | None = None) -> Garmin | 
         GarminConnectAuthenticationError,
         GarminConnectConnectionError,
     ):
-        print("No valid tokens found. Requesting fresh login credentials.")
+        pass
 
     # Loop for credential entry with retry on auth failure
     while True:
         try:
-            # Get credentials if not provided
-            if not email or not password:
-                email = input("Email address: ").strip()
-                password = getpass("Password: ")
+            # Get credentials
+            email, password = get_credentials()
 
-            print("Logging in with credentials...")
             garmin = Garmin(
                 email=email, password=password, is_cn=False, return_on_mfa=True
             )
             result1, result2 = garmin.login()
 
             if result1 == "needs_mfa":
-                print("Multi-factor authentication required")
-
-                mfa_code = get_mfa()
-                print("🔄 Submitting MFA code...")
+                mfa_code = input("Please enter your MFA code: ")
 
                 try:
                     garmin.resume_login(result2, mfa_code)
-                    print("✅ MFA authentication successful!")
 
                 except GarthHTTPError as garth_error:
                     # Handle specific HTTP errors from MFA
                     error_str = str(garth_error)
-                    print(f"🔍 Debug: MFA error details: {error_str}")
-
                     if "429" in error_str and "Too Many Requests" in error_str:
-                        print("❌ Too many MFA attempts")
-                        print("💡 Please wait 30 minutes before trying again")
                         sys.exit(1)
                     elif "401" in error_str or "403" in error_str:
-                        print("❌ Invalid MFA code")
-                        print("💡 Please verify your MFA code and try again")
                         continue
                     else:
                         # Other HTTP errors - don't retry
-                        print(f"❌ MFA authentication failed: {garth_error}")
                         sys.exit(1)
 
-                except GarthException as garth_error:
-                    print(f"❌ MFA authentication failed: {garth_error}")
-                    print("💡 Please verify your MFA code and try again")
+                except GarthException:
                     continue
 
             # Save tokens for future use
-            garmin.garth.dump(config.tokenstore)
-            print(f"Login successful! Tokens saved to: {config.tokenstore}")
-
+            garmin.garth.dump(str(tokenstore_path))
             return garmin
 
         except GarminConnectAuthenticationError:
-            print("❌ Authentication failed:")
-            print("💡 Please check your username and password and try again")
-            # Clear the provided credentials to force re-entry
-            email = None
-            password = None
+            # Continue the loop to retry
             continue
 
         except (
             FileNotFoundError,
             GarthHTTPError,
-            GarthException,
             GarminConnectConnectionError,
             requests.exceptions.HTTPError,
-        ) as err:
-            print(f"❌ Connection error: {err}")
-            print("💡 Please check your internet connection and try again")
+        ):
             return None
 
         except KeyboardInterrupt:
-            print("\nLogin cancelled by user")
             return None
