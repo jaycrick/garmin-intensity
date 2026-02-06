@@ -4,15 +4,34 @@ Downloading all activities
 
 from auth.app_auth import init_api, Config
 from garminconnect import Garmin
-# from garth.exc import GarthException, GarthHTTPError
+from pathlib import Path
+from typing import Set
 
 config = Config()
 
 
-def download_all_activities(api: Garmin, force=False) -> None:
-    """Download all activities as FIT files."""
+def get_file_names(data_dir: str = config.export_dir) -> Set[str]:
+    """
+    Lists names of all files in the data directory.
+    """
+    p = Path(data_dir)
+    return {item.name for item in p.iterdir() if item.is_file()}
+
+
+def extract_ids_from_path(file_name: str) -> str:
+    return file_name.split("_")[-1].split(".")[0]
+
+
+def extract_ids_from_directory(data_dir=config.export_dir):
+    file_names = get_file_names(data_dir)
+    return {extract_ids_from_path(file_name) for file_name in file_names}
+
+
+def download_all_new_activities(api: Garmin, force=False) -> None:
+    """Download all new activities as FIT files.
+    Setting force=True will download all files."""
     try:
-        print("📥 Downloading all activities...")
+        print("📥 Downloading all new activities...")
 
         export_dir = config.export_dir
         export_dir.mkdir(exist_ok=True)
@@ -26,7 +45,7 @@ def download_all_activities(api: Garmin, force=False) -> None:
             if not activities:
                 break
 
-            print(f"📊 Retrieved {len(activities)} activities (offset {start})")
+            print(f"📊 Retrieved {len(activities)} activities")
 
             for activity in activities:
                 activity_id = activity.get("activityId")
@@ -46,7 +65,7 @@ def download_all_activities(api: Garmin, force=False) -> None:
                 filename = f"{start_time}_{activity_type}_{activity_id}.fit"
                 filepath = export_dir / filename
 
-                if filepath.exists():
+                if not force and filepath.exists():
                     continue
 
                 print(f"📥 Downloading: {activity_name} (ID: {activity_id})")
@@ -74,7 +93,7 @@ def download_all_activities(api: Garmin, force=False) -> None:
 
 def main():
     api_instance = init_api()
-    download_all_activities(api_instance)
+    download_all_new_activities(api_instance)
 
 
 if __name__ == "__main__":
