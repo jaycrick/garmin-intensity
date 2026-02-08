@@ -4,12 +4,10 @@ import sys
 from datetime import timedelta
 from getpass import getpass
 from pathlib import Path
+
 import requests
-from garminconnect import (
-    Garmin,
-    GarminConnectAuthenticationError,
-    GarminConnectConnectionError,
-)
+from garminconnect import (Garmin, GarminConnectAuthenticationError,
+                           GarminConnectConnectionError)
 from garth.exc import GarthException, GarthHTTPError
 
 

@@ -3,7 +3,8 @@ from getpass import getpass
 from pathlib import Path
 
 import garminconnect
-from garminconnect import GarminConnectAuthenticationError, GarminConnectConnectionError
+from garminconnect import (GarminConnectAuthenticationError,
+                           GarminConnectConnectionError)
 
 # -----------------------
 # Configuration

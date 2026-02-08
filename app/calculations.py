@@ -1,9 +1,8 @@
-from lxml import etree
 from pathlib import Path
-
-from pathlib import Path
-from lxml import etree
 from typing import List, Tuple
+
+from lxml import etree
+
 from download_data import get_file_names
 
 
@@ -22,11 +21,11 @@ def extract_time_hr_pairs(tcx_path: Path) -> List[Tuple[str, int]]:
         List of (timestamp, heart_rate) pairs.
         Timestamp is returned as an ISO8601 string.
     """
-    tree = etree.parse(tcx_path)
+    root = etree.parse(tcx_path)
 
     ns = {"tcx": "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 
-    trackpoints = tree.findall(".//tcx:Trackpoint", namespaces=ns)
+    trackpoints = root.findall(".//tcx:Trackpoint", namespaces=ns)
 
     results: List[Tuple[str, int]] = []
 
